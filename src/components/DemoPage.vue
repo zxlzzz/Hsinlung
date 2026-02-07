@@ -20,13 +20,13 @@ export default {
 
   computed: {
     modeLabel() {
-      return this.state.modeName === "MAP" ? "地图模式" : "放大模式（双字符）";
+      return this.state.modeName === "MAP" ? "地图模式" : "放大模式";
     },
     hintText() {
       if (!this.state.running) return "未启动，请在调试页点击启动";
       return this.state.modeName === "MAP"
-        ? "实时环境感知 → 触觉点阵输出"
-        : "显示预设盲文字符（左 / 右各一个）";
+        ? "实时环境感知 → 31×21 触觉点阵输出"
+        : "局部细节识别 → 侧视图触觉映射";
     }
   }
 };

@@ -1,24 +1,41 @@
 /**
  * TactileNav — 全局常量
  *
- * 坐标约定（均 0-based）
- *   grid[15]，row-major：grid_flat[i] = grid[r][c], i = r*5 + c
- *   r = 0..2  上=前方, 下=后方
- *   c = 0..4  左=左侧, 右=右侧
- *   自身点：(1, 2)
+ * 点阵规格：31行 × 21列，共 651 个触点
+ * 物理尺寸：约 7.75cm(高) × 5.25cm(宽)，触点间距 2.5mm
+ *
+ * 坐标约定（0-based，行优先展开）
+ *   grid[651]  →  grid[i] = grid[r][c],  i = r * GRID_COLS + c
+ *
+ *   行方向（r）：前后轴
+ *     r=0  → 最前方（远场）
+ *     r=20 → 自身位置
+ *     r=30 → 最后方
+ *
+ *   列方向（c）：左右轴
+ *     c=0  → 最左侧
+ *     c=10 → 自身位置
+ *     c=20 → 最右侧
+ *
+ *   自身点：(r=20, c=10)
+ *
+ * 距离映射（前方 r=0..19，共 20 行）
+ *   远场区 r=0..4   （5行）：每行 50cm，覆盖 2.5-4.5m
+ *   中场区 r=5..14  （10行）：每行 20cm，覆盖 0.5-2.5m
+ *   近场区 r=15..19 （5行）：每行 10cm，覆盖 0-0.5m
+ *
+ * 距离映射（后方 r=21..30，共 10 行）
+ *   靠内 r=21..25（5行）：每行 10cm，覆盖 0-0.5m
+ *   靠外 r=26..30（5行）：每行 20cm，覆盖 0.5-1.5m
  *
  * level ∈ {0, 1, 2}
- *   mode=MAP  时三档均可用；自身位置固定为 0
- *   mode=ZOOM 时仅用 {0, 2}
- *
- * 放大模式区域划分
- *   左字符：r=0..2, c=0..1 (3×2)
- *   分隔列：c=2，全为 0
- *   右字符：r=0..2, c=3..4 (3×2)
+ *   0 = 常平（无障碍，安全通行）
+ *   1 = 中等凸起（远端/低威胁障碍，提醒注意）
+ *   2 = 完全凸起（近距离高风险，需立即避让）
  */
 
-export const MODE_MAP  = 0;   // 地图模式
-export const MODE_ZOOM = 1;   // 放大模式
+export const MODE_MAP  = 0;   // 地图模式（俯视图，全方位态势感知）
+export const MODE_ZOOM = 1;   // 放大模式（侧视图，局部细节识别）
 
 export const MODE_NAMES = {
   [MODE_MAP]:  "MAP",
@@ -26,19 +43,15 @@ export const MODE_NAMES = {
 };
 
 export const DEFAULT_FPS = {
-  [MODE_MAP]:  5,
-  [MODE_ZOOM]: 2
+  [MODE_MAP]:  5,   // 地图模式 5Hz
+  [MODE_ZOOM]: 2    // 放大模式 2Hz
 };
 
-export const GRID_ROWS = 3;
-export const GRID_COLS = 5;
-export const GRID_SIZE = GRID_ROWS * GRID_COLS; // 15
+export const GRID_ROWS = 31;
+export const GRID_COLS = 21;
+export const GRID_SIZE = GRID_ROWS * GRID_COLS; // 651
 
-export const SELF_R = 1;
-export const SELF_C = 2;
-export const SELF_INDEX = SELF_R * GRID_COLS + SELF_C; // 7
-
-// 放大模式字符区域（用于生成和校验）
-export const ZOOM_LEFT  = { rStart: 0, rEnd: 2, cStart: 0, cEnd: 1 }; // 3×2
-export const ZOOM_RIGHT = { rStart: 0, rEnd: 2, cStart: 3, cEnd: 4 }; // 3×2
-export const ZOOM_SEP_COL = 2; // 分隔列
+// 自身点位置（0-based）
+export const SELF_R = 20;
+export const SELF_C = 10;
+export const SELF_INDEX = SELF_R * GRID_COLS + SELF_C;

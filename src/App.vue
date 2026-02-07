@@ -1,77 +1,57 @@
+<!--
+  App.vue — 根组件（Part 3: 前端界面）
+
+  包含三个标签页：
+    - 状态页：查看连接/电量/模式等基础信息
+    - 调试页：运行控制、模式切换、参数调节
+    - 演示页：大字号展示运行状态和点阵可视化
+
+  TODO（UI 组）：
+    - 无障碍适配：支持 TalkBack/VoiceOver，字号≥18sp，对比度≥4.5:1
+    - 配置页：刷新频率、阈值参数、语音播报开关
+    - 适配移动端响应式布局
+-->
 <template>
-  <div class="wrap">
-    <DotMatrix 
-      v-model="state" 
-      :rows="rows" 
-      :cols="cols" 
-      :size="8" 
-      :gap="6" 
-      :lift="10" 
-      :shadow="20" 
-    />
-    <ControlPanel 
-      v-model="state" 
-      :rows="rows" 
-      :cols="cols" 
-    />
+  <div class="app">
+    <div class="topbar">
+      <div class="topbar-title">灵触·随行</div>
+      <div class="topbar-sub">TactileNav MVP — 触觉导航系统</div>
+    </div>
+
+    <div class="tabs">
+      <button
+        v-for="tab in tabs"
+        :key="tab.id"
+        :class="['tab-btn', { active: activeTab === tab.id }]"
+        @click="activeTab = tab.id"
+      >
+        {{ tab.label }}
+      </button>
+    </div>
+
+    <StatusPage v-if="activeTab === 'status'" />
+    <DebugPage  v-if="activeTab === 'debug'" />
+    <DemoPage   v-if="activeTab === 'demo'" />
   </div>
 </template>
 
-<script setup>
-import { ref } from "vue";
-import DotMatrix from "./test/DotMatrix.vue";
-import ControlPanel from "./test/ControlPanel.vue";
+<script>
+import StatusPage from "./components/StatusPage.vue";
+import DebugPage  from "./components/DebugPage.vue";
+import DemoPage   from "./components/DemoPage.vue";
 
-const rows = 21;
-const cols = 31;
-
-// 初始化 31×21 的空数组 (所有点都是 0)
-const state = ref(
-  Array.from({ length: rows }, () => 
-    Array.from({ length: cols }, () => 0)
-  )
-);
-
-// 【供外部调用】直接替换整个数组
-function updateState(newState) {
-  if (!Array.isArray(newState) || newState.length !== rows) {
-    console.error(`Invalid state: expected ${rows}×${cols} array`);
-    return;
+export default {
+  name: "App",
+  components: { StatusPage, DebugPage, DemoPage },
+  data() {
+    return {
+      activeTab: "status",
+      tabs: [
+        { id: "status", label: "状态" },
+        { id: "debug",  label: "调试" },
+        { id: "demo",   label: "演示" }
+      ]
+    };
   }
-  
-  // 验证并复制
-  const validated = newState.map((row, r) => {
-    if (!Array.isArray(row) || row.length !== cols) {
-      console.error(`Invalid row ${r}: expected ${cols} columns`);
-      return Array(cols).fill(0);
-    }
-    return row.map(v => Math.max(0, Math.min(2, v ?? 0))); // 确保值在 0-2
-  });
-  
-  state.value = validated;
-}
-
-// 暴露给外部使用（如果需要在父组件中调用）
-defineExpose({
-  updateState,
-  state,
-});
+};
 </script>
-
-<style scoped>
-.wrap {
-  display: flex;
-  gap: 20px;
-  align-items: flex-start;
-  padding: 24px;
-  background: linear-gradient(135deg, #f0f2f5 0%, #e5e7eb 100%);
-  min-height: 100vh;
-}
-
-@media (max-width: 1200px) {
-  .wrap {
-    flex-direction: column;
-    align-items: center;
-  }
-}
-</style>
