@@ -72,6 +72,9 @@ npm run build  # 构建生产版本
 - BLE 5.0（硬件通信，待接入）
 - 深度学习模型（Depth Anything / MiDaS，待接入）
 
+## 注意事项
+- **不要删除 `src/test/` 目录**。DotMatrix.vue 和 ControlPanel.vue 是独立的点阵交互测试工具，用于可视化验证和预设动画演示，已集成到 App.vue 的「点阵测试」标签页中。
+
 ## 文件结构
 ```
 ├── claude.md                    # 本文件：项目上下文
@@ -81,15 +84,18 @@ npm run build  # 构建生产版本
 ├── vite.config.js               # Vite 构建配置
 └── src/
     ├── main.js                  # 应用入口：初始化三层 + Vue
-    ├── App.vue                  # 根组件：标签页导航
+    ├── App.vue                  # 根组件：标签页导航（状态/调试/演示/点阵测试）
     ├── core/
     │   ├── constants.js         # 全局常量（31×21 点阵规格）
     │   ├── AlgorithmLayer.js    # Part 1: 算法层（待实现）
     │   ├── HardwareLayer.js     # Part 2: 硬件通信层（待实现）
     │   └── Integration.js       # Part 2: 集成层（框架已就绪）
-    └── components/
-        ├── StatusPage.vue       # Part 3: 状态页
-        ├── DebugPage.vue        # Part 3: 调试页
-        ├── DemoPage.vue         # Part 3: 演示页
-        └── GridPreview.vue      # Part 3: 点阵可视化组件
+    ├── components/
+    │   ├── StatusPage.vue       # Part 3: 状态页
+    │   ├── DebugPage.vue        # Part 3: 调试页
+    │   ├── DemoPage.vue         # Part 3: 演示页
+    │   └── GridPreview.vue      # Part 3: 点阵可视化组件
+    └── test/                    # 点阵交互测试工具（勿删）
+        ├── DotMatrix.vue        # 31×21 点阵渲染（三级高度可视化）
+        └── ControlPanel.vue     # 控制面板（预设动画、手动编辑、速度调节）
 ```
