@@ -26,9 +26,9 @@ npm run build  # 打包（一般开发时不需要）
     │
     ├── core/            ← 核心逻辑（三层架构）
     │   ├── constants.js      ← 全局常量：点阵尺寸 31×21、模式定义、自身点位置等
-    │   ├── AlgorithmLayer.js ← 【算法层】把摄像头数据变成 651 个点的数组（目前是假数据）
-    │   ├── HardwareLayer.js  ← 【硬件层】把点阵数据通过蓝牙发给盲杖（目前是空壳）
-    │   └── Integration.js    ← 【集成层】管开关、管模式切换、管定时刷新（已基本完成）
+    │   ├── AlgorithmLayer.js ← 【算法层】把摄像头数据变成 651 个点的数组
+    │   ├── HardwareLayer.js  ← 【硬件层】把点阵数据通过蓝牙发给盲杖
+    │   └── Integration.js    ← 【集成层】管开关、管模式切换、管定时刷新
     │
     ├── components/      ← 页面组件
     │   ├── StatusPage.vue    ← 「状态」标签页：显示连接状态、帧率、错误信息
