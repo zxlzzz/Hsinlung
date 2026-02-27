@@ -1,5 +1,34 @@
 <template>
   <div class="page">
+    <!-- BLE连接 -->
+    <div class="card">
+      <div class="card-title">蓝牙连接</div>
+      <div class="debug-row">
+        <span class="debug-label">设备状态</span>
+        <span :class="state.connected ? 'val ok' : 'val err'">
+          {{ state.connected ? "已连接" : "未连接" }}
+        </span>
+      </div>
+      <div class="debug-row">
+        <span class="debug-label">连接 / 断开</span>
+        <button
+          v-if="!state.connected"
+          class="btn primary"
+          @click="connectBLE"
+          :disabled="connecting"
+        >
+          {{ connecting ? "连接中..." : "连接盲杖" }}
+        </button>
+        <button
+          v-else
+          class="btn danger"
+          @click="disconnectBLE"
+        >
+          断开
+        </button>
+      </div>
+    </div>
+
     <!-- 运行控制 -->
     <div class="card">
       <div class="card-title">运行控制</div>
@@ -41,7 +70,6 @@
         <button class="btn secondary" @click="applyFps">设置</button>
         <span class="hint">当前: {{ state.fps }} Hz</span>
       </div>
-      <!-- TODO（队友）：摄像头开关、分辨率选择 -->
     </div>
   </div>
 </template>
@@ -49,16 +77,24 @@
 <script>
 export default {
   name: "DebugPage",
-
   inject: ["state", "integration"],
 
   data() {
     return {
-      inputFps: 5
+      inputFps: 5,
+      connecting: false
     };
   },
 
   methods: {
+    async connectBLE() {
+      this.connecting = true;
+      await this.integration.hw.connect();
+      this.connecting = false;
+    },
+    disconnectBLE() {
+      this.integration.hw.disconnect();
+    },
     toggleRunning() {
       this.state.running ? this.integration.stop() : this.integration.start();
     },
