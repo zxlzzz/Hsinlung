@@ -1,14 +1,13 @@
 /**
  * HardwareLayer — 硬件通信层（Web Bluetooth 实现）
  *
- * 基于105pin扁平grid：
- *   grid[0-89]  = 盲文区，值限制为 0/1
- *   grid[90-104] = DIY区，值 0/1/2
+ * 基于90pin扁平grid（15模组，5行×3列，每模组2行×3列）
+ * 所有pin值限制为 0/1（二值）
  *
  * 接口签名与原版完全兼容，Integration.js 不需要改。
  */
 
-import { GRID_SIZE, isDiyPin } from "./constants.js";
+import { GRID_SIZE } from "./constants.js";
 
 const SERVICE_UUID      = "0000ffe0-0000-1000-8000-00805f9b34fb";
 const CHAR_TACTILE_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb";
@@ -204,10 +203,10 @@ export class HardwareLayer {
       return;
     }
 
-    // 盲文区强制限制为0/1
+    // 所有pin强制限制为0/1
     const safeGrid = [...grid];
     for (let i = 0; i < GRID_SIZE; i++) {
-      if (!isDiyPin(i) && safeGrid[i] > 1) safeGrid[i] = 1;
+      if (safeGrid[i] > 1) safeGrid[i] = 1;
     }
 
     this._lastSeq  = seq;
