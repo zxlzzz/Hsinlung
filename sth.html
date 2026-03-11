@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>灵触·随行 — 点阵工程布局图</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { 
+  font-family: -apple-system, "PingFang SC", Consolas, sans-serif;
+  background: #0f172a; color: #e2e8f0; padding: 20px;
+}
+h1 { text-align: center; color: #93c5fd; font-size: 20px; margin-bottom: 4px; }
+.subtitle { text-align: center; color: #64748b; font-size: 12px; margin-bottom: 20px; }
+
+.main { display: flex; flex-wrap: wrap; gap: 24px; justify-content: center; }
+.svg-panel { 
+  background: #1e293b; border-radius: 12px; padding: 16px;
+  border: 1px solid #334155; flex: 1; min-width: 400px; max-width: 650px;
+}
+.svg-panel h2 { font-size: 14px; color: #fbbf24; margin-bottom: 10px; }
+
+.info-panel {
+  background: #1e293b; border-radius: 12px; padding: 16px;
+  border: 1px solid #334155; min-width: 280px; max-width: 380px;
+}
+.info-panel h2 { font-size: 14px; color: #fbbf24; margin-bottom: 10px; }
+
+.param-section { margin-bottom: 16px; }
+.param-section h3 { font-size: 12px; color: #94a3b8; margin-bottom: 6px; border-bottom: 1px solid #334155; padding-bottom: 4px; }
+.param-row { display: flex; justify-content: space-between; font-size: 12px; padding: 2px 0; }
+.param-row .k { color: #64748b; }
+.param-row .v { color: #93c5fd; font-weight: 600; font-family: Consolas, monospace; }
+.param-row .v.good { color: #34d399; }
+
+table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
+th { background: #0f172a; color: #94a3b8; padding: 4px 6px; text-align: left; font-weight: 500; }
+td { padding: 3px 6px; border-top: 1px solid #1e293b; color: #cbd5e1; }
+tr:hover td { background: #1e293b; }
+.pin-braille { color: #22d3ee; }
+
+.legend-bar {
+  display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;
+  margin-bottom: 16px; font-size: 11px; color: #94a3b8;
+}
+.legend-bar .item { display: flex; align-items: center; gap: 5px; }
+.legend-bar .dot { width: 10px; height: 10px; border-radius: 2px; }
+
+.note-box {
+  background: #0f172a; border-radius: 8px; padding: 10px 12px;
+  font-size: 11px; color: #64748b; line-height: 1.7; margin-top: 12px;
+}
+.note-box strong { color: #94a3b8; }
+
+svg { display: block; margin: 0 auto; }
+svg text { font-family: -apple-system, "PingFang SC", sans-serif; }
+</style>
+</head>
+<body>
+
+<h1>灵触·随行 — 点阵工程布局标注图</h1>
+<p class="subtitle">15模组方案 · 5行×3列排列 · 每模组 2行×3列 pin（横置）</p>
+
+<div class="legend-bar">
+  <div class="item"><div class="dot" style="background:#06b6d4;"></div>模组触摸面 (二值, 2.5mm间距)</div>
+  <div class="item"><div class="dot" style="background:#334155;"></div>模组底板区（含两侧各1mm边距）</div>
+</div>
+
+<div class="main">
+  <div class="svg-panel">
+    <h2>俯视图（触摸面朝上）</h2>
+    <div id="layout-svg"></div>
+  </div>
+  
+  <div class="info-panel">
+    <h2>参数总览</h2>
+    <div id="param-info"></div>
+    
+    <h2 style="margin-top:16px;">模组编号表</h2>
+    <div id="module-table"></div>
+    
+    <div class="note-box" id="notes"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// ★★★ 可修改参数区 ★★★
+// ============================================================
+
+const CONFIG = {
+  // --- 模组参数 ---
+  // 模组横置：横向为原touchH=8.2mm，纵向为原touchW=6mm
+  module: {
+    // 触摸面尺寸（横置后）
+    touchW: 8.2,        // 触摸面横向宽度 (mm)
+    touchH: 6.0,        // 触摸面纵向高度 (mm)
+    // 底板含两侧各1mm边距，所以底板横向=8.2+1+1=10.2mm
+    marginH: 1.0,       // 横向单侧边距 (mm)
+    totalH: 6.0,        // 纵向总高度 (mm)，与触摸面相同，无额外底板延伸
+    gapH: 0.4,          // 横向模组间隔 (mm)（底板之间）
+    gapV: 0.2,          // 纵向模组间隔 (mm)
+    // Pin排列（横置后：2行×3列）
+    pinRows: 2,         // 模组内pin行数（横置后）
+    pinCols: 3,         // 模组内pin列数（横置后）
+    pinSpacing: 2.5,    // 模组内pin间距 (mm)
+    pinHeight: 0.45,    // pin凸起高度 (mm)
+  },
+  
+  // --- 布局结构 ---
+  layout: {
+    rows: 5,            // 模组行数
+    cols: 3,            // 模组列数
+  },
+  
+  // --- 显示参数 ---
+  display: {
+    scale: 9,           // 1mm = ?px
+    padding: 35,        // SVG内边距 (px)
+  }
+};
+
+// ============================================================
+// 计算布局
+// ============================================================
+
+function computeLayout(C) {
+  const S = C.display.scale;
+  const M = C.module;
+  const L = C.layout;
+
+  // 底板横向宽度（含两侧边距）
+  const boardW = M.touchW + 2 * M.marginH;  // = 10.2mm
+
+  // 步进（pitch）
+  const pitchH = boardW + M.gapH;            // 横向步进: 10.2 + 0.4 = 10.6mm
+  const pitchV = M.totalH + M.gapV;          // 纵向步进: 7.3 + 0.4 = 7.7mm
+
+  // 总尺寸
+  const totalW = L.cols * pitchH - M.gapH;   // 最后一列不加gap
+  const totalV = L.rows * pitchV - M.gapV;   // 最后一行不加gap
+
+  // 模组位置列表
+  const modules = [];
+  for (let r = 0; r < L.rows; r++) {
+    for (let c = 0; c < L.cols; c++) {
+      const idx = r * L.cols + c + 1;
+      modules.push({
+        id: `M${idx}`,
+        row: r + 1,
+        col: c + 1,
+        // 底板左上角坐标
+        boardX: c * pitchH,
+        boardY: r * pitchV,
+        // 触摸面左上角坐标（在底板内，横向偏移marginH）
+        touchX: c * pitchH + M.marginH,
+        touchY: r * pitchV,
+      });
+    }
+  }
+
+  // 模组内pin偏移（相对于触摸面左上角）
+  const modPinOffsets = [];
+  for (let r = 0; r < M.pinRows; r++) {
+    for (let cc = 0; cc < M.pinCols; cc++) {
+      const px = (M.touchW - (M.pinCols - 1) * M.pinSpacing) / 2 + cc * M.pinSpacing;
+      const py = (M.touchH - (M.pinRows - 1) * M.pinSpacing) / 2 + r * M.pinSpacing;
+      modPinOffsets.push({ dx: px, dy: py });
+    }
+  }
+
+  return {
+    totalW, totalV, S,
+    modules, modPinOffsets,
+    pitchH, pitchV, boardW,
+    totalModules: modules.length,
+    totalBraillePins: modules.length * M.pinRows * M.pinCols,
+  };
+}
+
+// ============================================================
+// 渲染SVG
+// ============================================================
+
+function renderSVG(C, L) {
+  const S = L.S;
+  const pad = C.display.padding;
+  const M = C.module;
+
+  const svgW = L.totalW * S + pad * 2 + 60;
+  const svgH = L.totalV * S + pad * 2 + 60;
+
+  const ox = pad + 30;
+  const oy = pad + 20;
+
+  let svg = `<svg viewBox="0 0 ${svgW} ${svgH}" width="100%" xmlns="http://www.w3.org/2000/svg">`;
+  svg += `<rect width="${svgW}" height="${svgH}" fill="#0f172a"/>`;
+
+  const tx = mm => ox + mm * S;
+  const ty = mm => oy + mm * S;
+  const px = mm => mm * S;
+
+  // Grid
+  for (let x = 0; x <= Math.ceil(L.totalW) + 1; x += 5) {
+    svg += `<line x1="${tx(x)}" y1="${ty(0)}" x2="${tx(x)}" y2="${ty(L.totalV)}" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="2,4"/>`;
+  }
+  for (let y = 0; y <= Math.ceil(L.totalV) + 1; y += 5) {
+    svg += `<line x1="${tx(0)}" y1="${ty(y)}" x2="${tx(L.totalW)}" y2="${ty(y)}" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="2,4"/>`;
+  }
+
+  // Render modules
+  L.modules.forEach(mod => {
+    const bx = tx(mod.boardX);
+    const by = ty(mod.boardY);
+    const bw = px(L.boardW);
+    const bh = px(M.totalH);
+
+    const ttx = tx(mod.touchX);
+    const tty = ty(mod.touchY);
+    const tw = px(M.touchW);
+    const th = px(M.touchH);
+
+    // Board (bottom plate, full width including margins)
+    svg += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="${S*0.3}" fill="#334155" opacity="0.5"/>`;
+
+    // Touch surface
+    svg += `<rect x="${ttx}" y="${tty}" width="${tw}" height="${th}" rx="${S*0.4}" fill="#06b6d4" opacity="0.75" stroke="#06b6d4" stroke-width="0.5" stroke-opacity="0.5"/>`;
+
+    // Module ID
+    svg += `<text x="${ttx + tw/2}" y="${tty + th/2 + 3.5}" text-anchor="middle" font-size="8" fill="#fff" opacity="0.85" font-weight="600">${mod.id}</text>`;
+
+    // Pins
+    L.modPinOffsets.forEach(po => {
+      const ppx = ttx + px(po.dx);
+      const ppy = tty + px(po.dy);
+      svg += `<circle cx="${ppx}" cy="${ppy}" r="${S*0.45}" fill="#fff" opacity="0.35"/>`;
+    });
+  });
+
+  // ---- DIMENSION ANNOTATIONS ----
+
+  // Total width (bottom)
+  const dimY = ty(L.totalV) + 28;
+  svg += `<line x1="${tx(0)}" y1="${dimY}" x2="${tx(L.totalW)}" y2="${dimY}" stroke="#475569" stroke-width="0.8"/>`;
+  svg += `<line x1="${tx(0)}" y1="${dimY-4}" x2="${tx(0)}" y2="${dimY+4}" stroke="#475569" stroke-width="0.8"/>`;
+  svg += `<line x1="${tx(L.totalW)}" y1="${dimY-4}" x2="${tx(L.totalW)}" y2="${dimY+4}" stroke="#475569" stroke-width="0.8"/>`;
+  svg += `<text x="${tx(L.totalW/2)}" y="${dimY+13}" text-anchor="middle" font-size="9" fill="#94a3b8">${L.totalW.toFixed(1)} mm</text>`;
+
+  // Total height (right)
+  const dimX = tx(L.totalW) + 22;
+  svg += `<line x1="${dimX}" y1="${ty(0)}" x2="${dimX}" y2="${ty(L.totalV)}" stroke="#475569" stroke-width="0.8"/>`;
+  svg += `<line x1="${dimX-4}" y1="${ty(0)}" x2="${dimX+4}" y2="${ty(0)}" stroke="#475569" stroke-width="0.8"/>`;
+  svg += `<line x1="${dimX-4}" y1="${ty(L.totalV)}" x2="${dimX+4}" y2="${ty(L.totalV)}" stroke="#475569" stroke-width="0.8"/>`;
+  svg += `<text x="${dimX+4}" y="${ty(L.totalV/2)}" text-anchor="start" font-size="9" fill="#94a3b8" transform="rotate(90,${dimX+4},${ty(L.totalV/2)})">${L.totalV.toFixed(1)} mm</text>`;
+
+  // Single module board width annotation (top of first module)
+  const m0 = L.modules[0];
+  const annY = ty(m0.boardY) - 8;
+  svg += `<line x1="${tx(m0.boardX)}" y1="${annY}" x2="${tx(m0.boardX + L.boardW)}" y2="${annY}" stroke="#33415588" stroke-width="0.6"/>`;
+  svg += `<line x1="${tx(m0.boardX)}" y1="${annY-3}" x2="${tx(m0.boardX)}" y2="${annY+3}" stroke="#33415588" stroke-width="0.6"/>`;
+  svg += `<line x1="${tx(m0.boardX + L.boardW)}" y1="${annY-3}" x2="${tx(m0.boardX + L.boardW)}" y2="${annY+3}" stroke="#33415588" stroke-width="0.6"/>`;
+  svg += `<text x="${tx(m0.boardX + L.boardW/2)}" y="${annY - 4}" text-anchor="middle" font-size="7" fill="#94a3b8" opacity="0.8">${L.boardW.toFixed(1)}mm 底板</text>`;
+
+  // Touch surface width annotation (left side of first module, between margin markers)
+  const touchAnnotY = ty(m0.boardY) - 8;
+  // margin left
+  svg += `<line x1="${tx(m0.boardX)}" y1="${annY - 14}" x2="${tx(m0.touchX)}" y2="${annY - 14}" stroke="#06b6d455" stroke-width="0.5"/>`;
+  svg += `<text x="${tx(m0.boardX + C.module.marginH/2)}" y="${annY - 16}" text-anchor="middle" font-size="6" fill="#06b6d4" opacity="0.7">1mm</text>`;
+  // touch surface
+  svg += `<line x1="${tx(m0.touchX)}" y1="${annY - 14}" x2="${tx(m0.touchX + C.module.touchW)}" y2="${annY - 14}" stroke="#06b6d488" stroke-width="0.5"/>`;
+  svg += `<text x="${tx(m0.touchX + C.module.touchW/2)}" y="${annY - 16}" text-anchor="middle" font-size="6" fill="#06b6d4" opacity="0.9">${C.module.touchW}mm</text>`;
+  // margin right
+  svg += `<line x1="${tx(m0.touchX + C.module.touchW)}" y1="${annY - 14}" x2="${tx(m0.boardX + L.boardW)}" y2="${annY - 14}" stroke="#06b6d455" stroke-width="0.5"/>`;
+  svg += `<text x="${tx(m0.touchX + C.module.touchW + C.module.marginH/2)}" y="${annY - 16}" text-anchor="middle" font-size="6" fill="#06b6d4" opacity="0.7">1mm</text>`;
+
+  // Module gap annotation (between M1 and M2 horizontally)
+  if (L.modules.length >= 2) {
+    const m1 = L.modules[0];
+    const m2 = L.modules[1];
+    const gapAnnY = ty(m1.boardY + C.module.totalH / 2);
+    const gapX1 = tx(m1.boardX + L.boardW);
+    const gapX2 = tx(m2.boardX);
+    svg += `<line x1="${gapX1}" y1="${gapAnnY}" x2="${gapX2}" y2="${gapAnnY}" stroke="#47556988" stroke-width="0.5"/>`;
+    svg += `<text x="${(gapX1+gapX2)/2}" y="${gapAnnY - 3}" text-anchor="middle" font-size="5.5" fill="#94a3b8" opacity="0.7">${C.module.gapH}mm</text>`;
+  }
+
+  // Module height annotation (left of first column)
+  const hAnnX = tx(m0.boardX) - 18;
+  svg += `<line x1="${hAnnX}" y1="${ty(m0.boardY)}" x2="${hAnnX}" y2="${ty(m0.boardY + C.module.totalH)}" stroke="#33415588" stroke-width="0.6"/>`;
+  svg += `<line x1="${hAnnX-3}" y1="${ty(m0.boardY)}" x2="${hAnnX+3}" y2="${ty(m0.boardY)}" stroke="#33415588" stroke-width="0.6"/>`;
+  svg += `<line x1="${hAnnX-3}" y1="${ty(m0.boardY + C.module.totalH)}" x2="${hAnnX+3}" y2="${ty(m0.boardY + C.module.totalH)}" stroke="#33415588" stroke-width="0.6"/>`;
+  svg += `<text x="${hAnnX - 4}" y="${ty(m0.boardY + C.module.totalH/2)}" text-anchor="middle" font-size="7" fill="#94a3b8" opacity="0.8" transform="rotate(-90,${hAnnX-4},${ty(m0.boardY + C.module.totalH/2)})">${C.module.totalH}mm</text>`;
+
+  svg += '</svg>';
+  return svg;
+}
+
+// ============================================================
+// 渲染参数面板
+// ============================================================
+
+function renderParams(C, L) {
+  const M = C.module;
+  let html = '';
+
+  html += '<div class="param-section"><h3>📐 整体尺寸</h3>';
+  html += paramRow('总宽', `${L.totalW.toFixed(1)} mm`);
+  html += paramRow('总高', `${L.totalV.toFixed(1)} mm`);
+  html += paramRow('总面积', `≈${(L.totalW * L.totalV / 100).toFixed(1)} cm²`);
+  html += '</div>';
+
+  html += '<div class="param-section"><h3>🔵 模组排列</h3>';
+  html += paramRow('排列', `${C.layout.rows}行 × ${C.layout.cols}列`);
+  html += paramRow('模组总数', `${L.totalModules} 个`);
+  html += paramRow('横向步进', `${L.pitchH.toFixed(1)} mm`);
+  html += paramRow('纵向步进', `${L.pitchV.toFixed(1)} mm`);
+  html += '</div>';
+
+  html += '<div class="param-section"><h3>📦 单模组参数</h3>';
+  html += paramRow('触摸面 (横×纵)', `${M.touchW} × ${M.touchH} mm`);
+  html += paramRow('底板宽 (含边距)', `${(M.touchW + 2*M.marginH).toFixed(1)} mm`);
+  html += paramRow('底板纵向高', `${M.totalH} mm`);
+  html += paramRow('横向单侧边距', `${M.marginH} mm`);
+  html += paramRow('横向间隔', `${M.gapH} mm`);
+  html += paramRow('纵向间隔', `${M.gapV} mm`);
+  html += paramRow('Pin排列', `${M.pinRows}行 × ${M.pinCols}列`);
+  html += paramRow('Pin间距', `${M.pinSpacing} mm`);
+  html += paramRow('Pin凸起', `${M.pinHeight} mm`);
+  html += '</div>';
+
+  html += '<div class="param-section"><h3>📊 汇总</h3>';
+  html += paramRow('总Pin数', `${L.totalBraillePins}`, 'good');
+  html += paramRow('总点列数', `${C.layout.cols * M.pinCols} 列 (${C.layout.cols}×${M.pinCols})`);
+  html += paramRow('总点行数', `${C.layout.rows * M.pinRows} 行 (${C.layout.rows}×${M.pinRows})`);
+  html += paramRow('SPI控制器', `${L.totalModules} 个 (级联)`);
+  html += '</div>';
+
+  return html;
+}
+
+function paramRow(key, val, cls) {
+  return `<div class="param-row"><span class="k">${key}</span><span class="v ${cls||''}">${val}</span></div>`;
+}
+
+// ============================================================
+// 模组编号表
+// ============================================================
+
+function renderModuleTable(C, L) {
+  let html = '<table><thead><tr><th>编号</th><th>行,列</th><th>X (mm)</th><th>Y (mm)</th><th>SPI序号</th></tr></thead><tbody>';
+  L.modules.forEach((m, i) => {
+    html += `<tr><td class="pin-braille">${m.id}</td><td>${m.row},${m.col}</td><td>${m.boardX.toFixed(2)}</td><td>${m.boardY.toFixed(2)}</td><td>#${i+1}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  return html;
+}
+
+// ============================================================
+// 备注
+// ============================================================
+
+function renderNotes(C) {
+  const M = C.module;
+  return `
+    <strong>坐标系说明</strong><br>
+    · 原点 (0,0) 在整体布局左上角<br>
+    · X轴向右为正，Y轴向下为正<br>
+    · 坐标指底板左上角，单位: mm<br><br>
+    <strong>模组说明</strong><br>
+    · 模组横置：横向 ${M.touchW}mm，纵向 ${M.touchH}mm<br>
+    · 底板横向含两侧各 ${M.marginH}mm 边距，共 ${(M.touchW+2*M.marginH).toFixed(1)}mm<br>
+    · Pin布局：${M.pinRows}行×${M.pinCols}列，间距 ${M.pinSpacing}mm<br><br>
+    <strong>修改方法</strong><br>
+    · 修改顶部 CONFIG 对象中的参数<br>
+    · 刷新浏览器即可看到变化
+  `;
+}
+
+// ============================================================
+// 初始化
+// ============================================================
+
+const layout = computeLayout(CONFIG);
+document.getElementById('layout-svg').innerHTML = renderSVG(CONFIG, layout);
+document.getElementById('param-info').innerHTML = renderParams(CONFIG, layout);
+document.getElementById('module-table').innerHTML = renderModuleTable(CONFIG, layout);
+document.getElementById('notes').innerHTML = renderNotes(CONFIG);
+
+</script>
+</body>
+</html>
